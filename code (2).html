@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Mobile Snake Game - Classic Nokia Style</title>
+<style>
+  /* Reset and base */
+  * {
+    box-sizing: border-box;
+  }
+  body, html {
+    margin: 0; padding: 0;
+    height: 100%;
+    background: linear-gradient(135deg, #0f2027, #2c5364);
+    color: #eee;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  h1 {
+    margin: 1rem 0 0.5rem 0;
+    font-weight: 700;
+    font-size: 1.8rem;
+    letter-spacing: 2px;
+    color: #b2ff59;
+    text-shadow: 0 0 6px #76ff03;
+  }
+  #scoreboard {
+    font-weight: 600;
+    font-size: 1.4rem;
+    margin-bottom: 0.5rem;
+    letter-spacing: 1.5px;
+  }
+  #game-container {
+    position: relative;
+    width: 320px;
+    height: 420px;
+    background: #222;
+    border: 4px solid #76ff03;
+    border-radius: 16px;
+    box-shadow: 0 0 15px #76ff03;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 10px;
+  }
+  canvas {
+    background: #000;
+    border-radius: 12px;
+    box-shadow: inset 0 0 8px #3c763d;
+    touch-action: none;
+  }
+  /* Controls container */
+  #controls {
+    margin-top: 10px;
+    width: 100%;
+    max-width: 320px;
+    display: grid;
+    grid-template-columns: 60px 60px 60px;
+    grid-template-rows: 60px 60px;
+    justify-content: center;
+    gap: 8px;
+    user-select: none;
+  }
+  .btn {
+    background: #333;
+    border-radius: 12px;
+    box-shadow: 0 0 6px #76ff03;
+    color: #b2ff59;
+    font-size: 1.8rem;
+    font-weight: 700;
+    line-height: 60px;
+    text-align: center;
+    user-select: none;
+    -webkit-user-select: none;
+    cursor: pointer;
+    transition: background 0.3s ease, box-shadow 0.3s ease;
+    touch-action: manipulation;
+  }
+  .btn:active {
+    background: #76ff03;
+    color: #000;
+    box-shadow: 0 0 12px #b2ff59;
+  }
+  /* Position of arrow buttons in grid */
+  #btn-up {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  #btn-left {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  #btn-down {
+    grid-column: 2;
+    grid-row: 2;
+  }
+  #btn-right {
+    grid-column: 3;
+    grid-row: 2;
+  }
+  #game-over-overlay {
+    position: absolute;
+    top: 10px; left: 10px; right: 10px; bottom: 10px;
+    background: rgba(0,0,0,0.9);
+    border-radius: 16px;
+    color: #b2ff59;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    text-align: center;
+    box-shadow: 0 0 15px #76ff03;
+    z-index: 10;
+    padding: 20px;
+    overflow-y: auto;
+  }
+  #button-container {
+    margin-top: 20px;
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+  }
+  #game-over-overlay button {
+    padding: 10px 24px;
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #000;
+    background: #76ff03;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    box-shadow: 0 0 10px #b2ff59;
+    transition: background 0.3s ease;
+    min-width: 120px;
+  }
+  #game-over-overlay button:hover {
+    background: #a6ff5c;
+  }
+  #leaderboard {
+    margin-top: 15px;
+    width: 100%;
+    max-width: 280px;
+    text-align: left;
+  }
+  #leaderboard h2 {
+    font-size: 1.5rem;
+    margin-bottom: 8px;
+    color: #ccff33;
+    text-shadow: 0 0 5px #76ff03;
+  }
+  /* Remove native list styling since flex hides it */
+  #leaderboard ol {
+    padding-left: 30px;
+    margin: 0;
+    list-style: none;
+    counter-reset: leaderboard-counter;
+  }
+  #leaderboard li {
+    position: relative;
+    margin-bottom: 4px;
+    font-weight: 600;
+    font-size: 1.1rem;
+    letter-spacing: 0.5px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    opacity: 1;
+    transition: opacity 0.4s ease;
+    padding-left: 28px;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  #leaderboard li::before {
+    counter-increment: leaderboard-counter;
+    content: counter(leaderboard-counter) ".";
+    position: absolute;
+    left: 0;
+    color: #ccff33;
+    font-weight: 900;
+    font-size: 1.2rem;
+    text-shadow: 0 0 5px #76ff03;
+  }
+  /* Wrap name and score text to fixed width container for alignment */
+  #leaderboard li .score-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 220px; /* Adjust this to your needs */
+    padding-right: 6px;
+  }
+  #leaderboard li.deleting {
+    opacity: 0;
+    pointer-events: none;
+  }
+  /* Smaller square delete button with bigger X */
+  #leaderboard li button {
+    background: transparent;
+    border: none;
+    color: #ff4444;
+    font-weight: 900;
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+    transition: color 0.3s ease;
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  #leaderboard li button:hover {
+    color: #ff0000;
+  }
+  /* Player name input modal */
+  #name-modal {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(15, 32, 39, 0.95);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 20;
+    padding: 10px;
+  }
+  #name-modal-content {
+    background: #222;
+    border-radius: 16px;
+    padding: 30px 25px;
+    box-shadow: 0 0 15px #76ff03;
+    width: 90%;
+    max-width: 320px;
+    text-align: center;
+  }
+  #name-modal-content h2 {
+    color: #b2ff59;
+    font-weight: 700;
+    margin-bottom: 20px;
+    text-shadow: 0 0 5px #76ff03;
+  }
+  #player-name-input {
+    width: 100%;
+    padding: 12px 10px;
+    font-size: 1.2rem;
+    border-radius: 12px;
+    border: 2px solid #76ff03;
+    background: #111;
+    color: #b2ff59;
+    outline: none;
+    text-align: center;
+    box-shadow: inset 0 0 8px #3c763d;
+  }
+  #player-name-input::placeholder {
+    color: #76ff03aa;
+  }
+  #start-game-btn {
+    margin-top: 20px;
+    width: 100%;
+    background: #76ff03;
+    color: #000;
+    font-weight: 700;
+    font-size: 1.3rem;
+    padding: 12px 0;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    box-shadow: 0 0 12px #b2ff59;
+    transition: background 0.3s ease;
+  }
+  #start-game-btn:disabled {
+    background: #444;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+  #start-game-btn:hover:not(:disabled) {
+    background: #a6ff5c;
+  }
+  /* Deletion notice */
+  #delete-notice {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #ff4444cc;
+    color: white;
+    padding: 10px 24px;
+    border-radius: 20px;
+    font-weight: 700;
+    font-size: 1.1rem;
+    box-shadow: 0 0 12px #ff4444cc;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s ease;
+    z-index: 30;
+  }
+  #delete-notice.show {
+    opacity: 1;
+    pointer-events: auto;
+  }
+</style>
+</head>
+<body>
+<h1>Snake - Mobile Classic</h1>
+<div id="scoreboard">Score: 0</div>
+<div id="game-container">
+  <canvas id="gameCanvas" width="300" height="300" aria-label="Snake game canvas" role="img"></canvas>
+  <div id="game-over-overlay" role="dialog" aria-modal="true" aria-labelledby="game-over-title" aria-describedby="game-over-desc">
+    <div id="game-over-text" >
+      <h2 id="game-over-title">Game Over!</h2>
+      <p id="game-over-desc">Your score: <span id="final-score">0</span></p>
+    </div>
+    <div id="leaderboard">
+      <h2>Leaderboard</h2>
+      <ol id="leaderboard-list"></ol>
+    </div>
+    <div id="button-container">
+      <button id="restart-btn" aria-label="Restart game button">Restart</button>
+      <button id="new-game-btn" aria-label="New game button">New Game</button>
+    </div>
+  </div>
+</div>
+<div id="controls" aria-label="Game control buttons">
+  <div class="btn" id="btn-up" role="button" tabindex="0" aria-label="Move Up">&#9650;</div>
+  <div class="btn" id="btn-left" role="button" tabindex="0" aria-label="Move Left">&#9664;</div>
+  <div class="btn" id="btn-down" role="button" tabindex="0" aria-label="Move Down">&#9660;</div>
+  <div class="btn" id="btn-right" role="button" tabindex="0" aria-label="Move Right">&#9654;</div>
+</div>
+<!-- Player name modal -->
+<div id="name-modal" role="dialog" aria-modal="true" aria-labelledby="name-modal-title" aria-describedby="name-modal-desc">
+  <div id="name-modal-content">
+    <h2 id="name-modal-title">Enter Your Name</h2>
+    <input type="text" id="player-name-input" maxlength="15" placeholder="Your name" aria-describedby="name-modal-desc" />
+    <button id="start-game-btn" disabled>Start Game</button>
+  </div>
+</div>
+<!-- Deletion notice -->
+<div id="delete-notice" role="alert" aria-live="assertive" aria-atomic="true"></div>
+<script>
+(() => {
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  const canvasSize = 300;
+  const cellCount = 20;
+  const cellSize = canvasSize / cellCount;
+
+  const snakeColor = '#76ff03';
+  const snakeHeadColor = '#ccff33';
+  const foodColor = '#ff3d00';
+  const bgColor = '#000';
+
+  let snake = [{x:10, y:10}];
+  let direction = {x: 0, y: 0};
+  let nextDirection = {x: 0, y: 0};
+  let food = null;
+  let score = 0;
+  let gameOver = false;
+  let playerName = '';
+
+  const scoreboard = document.getElementById('scoreboard');
+  const gameOverOverlay = document.getElementById('game-over-overlay');
+  const finalScoreElem = document.getElementById('final-score');
+  const restartBtn = document.getElementById('restart-btn');
+  const newGameBtn = document.getElementById('new-game-btn');
+  const leaderboardList = document.getElementById('leaderboard-list');
+  const nameModal = document.getElementById('name-modal');
+  const playerNameInput = document.getElementById('player-name-input');
+  const startGameBtn = document.getElementById('start-game-btn');
+  const deleteNotice = document.getElementById('delete-notice');
+
+  const leaderboardKey = 'snakeMobileLeaderboard';
+
+  function placeFood() {
+    let valid = false;
+    while (!valid) {
+      let fx = Math.floor(Math.random() * cellCount);
+      let fy = Math.floor(Math.random() * cellCount);
+      valid = true;
+      for (let s of snake) {
+        if (s.x === fx && s.y === fy) {
+          valid = false;
+          break;
+        }
+      }
+      if(valid) food = {x: fx, y: fy};
+    }
+  }
+
+  function drawCell(x, y, color) {
+    ctx.fillStyle = color;
+    ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+    ctx.strokeStyle = '#234d20';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x * cellSize, y * cellSize, cellSize, cellSize);
+  }
+
+  function draw() {
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(0, 0, canvasSize, canvasSize);
+    if (food) {
+      drawCell(food.x, food.y, foodColor);
+    }
+    for (let i = 0; i < snake.length; i++) {
+      drawCell(snake[i].x, snake[i].y, (i === 0) ? snakeHeadColor : snakeColor);
+    }
+  }
+
+  function update() {
+    if(gameOver) return;
+    if ((nextDirection.x !== 0 || nextDirection.y !== 0) &&
+        (nextDirection.x !== -direction.x || nextDirection.y !== -direction.y)) {
+      direction = nextDirection;
+    }
+    if(direction.x === 0 && direction.y === 0) return;
+
+    const newX = snake[0].x + direction.x;
+    const newY = snake[0].y + direction.y;
+
+    if (newX < 0 || newX >= cellCount || newY < 0 || newY >= cellCount) {
+      gameOver = true;
+      showGameOver();
+      return;
+    }
+
+    for(let i = 0; i < snake.length; i++) {
+      if (snake[i].x === newX && snake[i].y === newY) {
+        gameOver = true;
+        showGameOver();
+        return;
+      }
+    }
+
+    snake.unshift({x: newX, y: newY});
+
+    if (food && newX === food.x && newY === food.y) {
+      score++;
+      updateScore();
+      placeFood();
+    } else {
+      snake.pop();
+    }
+  }
+
+  function updateScore() {
+    scoreboard.textContent = 'Score: ' + score;
+  }
+
+  function getLeaderboard() {
+    let lb = localStorage.getItem(leaderboardKey);
+    if(lb) {
+      try {
+        return JSON.parse(lb);
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  }
+  function saveLeaderboard(lb) {
+    localStorage.setItem(leaderboardKey, JSON.stringify(lb));
+  }
+
+  function addScoreToLeaderboard(name, score) {
+    let lb = getLeaderboard();
+    lb.push({name, score});
+    lb.sort((a,b) => b.score - a.score);
+    if (lb.length > 5) lb = lb.slice(0,5);
+    saveLeaderboard(lb);
+  }
+
+  function renderLeaderboard() {
+    const lb = getLeaderboard();
+    leaderboardList.innerHTML = '';
+    if(lb.length === 0) {
+      let li = document.createElement('li');
+      li.textContent = "No scores yet.";
+      leaderboardList.appendChild(li);
+    } else {
+      lb.forEach(item => {
+        let li = document.createElement('li');
+        let spanText = document.createElement('span');
+        spanText.classList.add('score-text');
+        spanText.textContent = `${item.name}: ${item.score}`;
+        li.appendChild(spanText);
+
+        let delButton = document.createElement('button');
+        delButton.textContent = '×';
+        delButton.title = 'Delete this entry';
+        delButton.setAttribute('aria-label', `Delete score of ${item.name} with score ${item.score}`);
+        delButton.addEventListener('click', () => {
+          li.classList.add('deleting');
+          setTimeout(() => {
+            const currentLb = getLeaderboard();
+            const idx = currentLb.findIndex(e => e.name === item.name && e.score === item.score);
+            if(idx !== -1) {
+              currentLb.splice(idx, 1);
+              saveLeaderboard(currentLb);
+              renderLeaderboard();
+              showDeleteNotice(`${item.name}'s score removed`);
+            }
+          }, 400);
+        });
+        li.appendChild(delButton);
+        leaderboardList.appendChild(li);
+      });
+    }
+  }
+
+  function showGameOver() {
+    finalScoreElem.textContent = score;
+    addScoreToLeaderboard(playerName, score);
+    renderLeaderboard();
+    gameOverOverlay.style.display = 'flex';
+  }
+
+  function restartGame() {
+    snake = [{x:10, y:10}];
+    direction = {x: 0, y: 0};
+    nextDirection = {x: 0, y: 0};
+    score = 0;
+    updateScore();
+    gameOver = false;
+    gameOverOverlay.style.display = 'none';
+    placeFood();
+    requestAnimationFrame(gameLoop);
+  }
+
+  function newGame() {
+    gameOverOverlay.style.display = 'none';
+    playerNameInput.value = '';
+    startGameBtn.disabled = true;
+    nameModal.style.display = 'flex';
+    playerNameInput.focus();
+  }
+
+  function setDirection(dx, dy) {
+    if(gameOver) return;
+    if (dx === -direction.x && dy === -direction.y) return;
+    nextDirection = {x: dx, y: dy};
+  }
+
+  document.getElementById('btn-up').addEventListener('touchstart', e => { e.preventDefault(); setDirection(0, -1); });
+  document.getElementById('btn-down').addEventListener('touchstart', e => { e.preventDefault(); setDirection(0, 1); });
+  document.getElementById('btn-left').addEventListener('touchstart', e => { e.preventDefault(); setDirection(-1, 0); });
+  document.getElementById('btn-right').addEventListener('touchstart', e => { e.preventDefault(); setDirection(1, 0); });
+
+  document.getElementById('btn-up').addEventListener('mousedown', e => { e.preventDefault(); setDirection(0, -1); });
+  document.getElementById('btn-down').addEventListener('mousedown', e => { e.preventDefault(); setDirection(0, 1); });
+  document.getElementById('btn-left').addEventListener('mousedown', e => { e.preventDefault(); setDirection(-1, 0); });
+  document.getElementById('btn-right').addEventListener('mousedown', e => { e.preventDefault(); setDirection(1, 0); });
+
+  restartBtn.addEventListener('click', restartGame);
+  newGameBtn.addEventListener('click', newGame);
+
+  let touchStartX = null;
+  let touchStartY = null;
+  const swipeThreshold = 30;
+
+  canvas.addEventListener('touchstart', e => {
+    const touch = e.changedTouches[0];
+    touchStartX = touch.clientX;
+    touchStartY = touch.clientY;
+  });
+
+  canvas.addEventListener('touchmove', e => {
+    if(touchStartX === null || touchStartY === null) return;
+    const touch = e.changedTouches[0];
+    const diffX = touch.clientX - touchStartX;
+    const diffY = touch.clientY - touchStartY;
+    if(Math.abs(diffX) > swipeThreshold || Math.abs(diffY) > swipeThreshold) {
+      if(Math.abs(diffX) > Math.abs(diffY)) {
+        if(diffX > 0) setDirection(1, 0);
+        else setDirection(-1, 0);
+      } else {
+        if(diffY > 0) setDirection(0, 1);
+        else setDirection(0, -1);
+      }
+      touchStartX = null;
+      touchStartY = null;
+    }
+  });
+
+  window.addEventListener('keydown', e => {
+    switch(e.key) {
+      case 'ArrowUp': setDirection(0, -1); break;
+      case 'ArrowDown': setDirection(0, 1); break;
+      case 'ArrowLeft': setDirection(-1, 0); break;
+      case 'ArrowRight': setDirection(1, 0); break;
+    }
+  });
+
+  playerNameInput.addEventListener('input', () => {
+    const trimmed = playerNameInput.value.trim();
+    startGameBtn.disabled = trimmed.length === 0;
+  });
+
+  startGameBtn.addEventListener('click', () => {
+    const trimmed = playerNameInput.value.trim();
+    if(trimmed.length > 0) {
+      playerName = trimmed;
+      nameModal.style.display = 'none';
+      restartGame();
+    }
+  });
+
+  playerNameInput.addEventListener('keydown', e => {
+    if(e.key === 'Enter' && !startGameBtn.disabled) {
+      e.preventDefault();
+      startGameBtn.click();
+    }
+  });
+
+  function showDeleteNotice(message) {
+    deleteNotice.textContent = message;
+    deleteNotice.classList.add('show');
+    setTimeout(() => {
+      deleteNotice.classList.remove('show');
+    }, 3000);
+  }
+
+  let lastTime = 0;
+  const gameSpeed = 8;
+
+  function gameLoop(timestamp) {
+    if(gameOver) return;
+    if(!lastTime) lastTime = timestamp;
+    const elapsed = (timestamp - lastTime) / 1000;
+    if(elapsed > 1 / gameSpeed) {
+      update();
+      draw();
+      lastTime = timestamp;
+    }
+    if(!gameOver) {
+      requestAnimationFrame(gameLoop);
+    }
+  }
+
+  window.addEventListener('load', () => {
+    playerNameInput.focus();
+    startGameBtn.disabled = true;
+  });
+
+  draw();
+})();
+</script>
+</body>
+</html>
+
